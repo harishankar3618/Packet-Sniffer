@@ -16,7 +16,7 @@ def start_packet_sniffer(interface):
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # Print status message
-        print(f"Packet sniffing started on interface {interface}. Press Ctrl+C to stop.")
+        print(f"Packet sniffing started on interface '{interface}'. Press Ctrl+C to stop.")
 
         # Read the output of tcpdump line by line
         for line in iter(process.stdout.readline, b''):
@@ -24,26 +24,38 @@ def start_packet_sniffer(interface):
 
     except KeyboardInterrupt:
         # Handle keyboard interrupt to gracefully exit
+        print("\nStopping packet sniffing...")
         process.terminate()
-        print("\nPacket sniffing stopped.")
+        process.wait()  # Ensure subprocess resources are cleaned up
+        print("Packet sniffing stopped.")
+    except FileNotFoundError:
+        print("Error: 'tcpdump' not found. Please install it to use this tool.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An unexpected error occurred: {e}")
 
 
 def select_interface():
     """
     Select a network interface for packet sniffing.
+
     Returns:
-        str: The selected network interface.
+        str: The selected network interface, or None if no interface is selected.
     """
     try:
-        interfaces = subprocess.check_output(["ifconfig"]).decode("utf-8")
-        print("Available network interfaces:")
+        # Use 'ip a' for modern systems to list interfaces
+        interfaces = subprocess.check_output(["ip", "a"]).decode("utf-8")
+        print("Available network interfaces:\n")
         print(interfaces)
+
+        # Prompt user for interface selection
         interface = input("Enter the interface name you want to sniff packets on: ").strip()
-        return interface
+        return interface if interface else None
+
     except subprocess.CalledProcessError as e:
-        print(f"Error: {e.output.decode('utf-8')}")
+        print(f"Error while listing interfaces: {e.output.decode('utf-8')}")
+        return None
+    except FileNotFoundError:
+        print("Error: 'ip' or 'ifconfig' command not found. Please ensure network tools are installed.")
         return None
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
@@ -55,4 +67,4 @@ if __name__ == "__main__":
     if interface:
         start_packet_sniffer(interface)
     else:
-        print("Exiting...")
+        print("No valid interface selected. Exiting...")
